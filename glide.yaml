@@ -1,0 +1,18 @@
+package: github.com/apptio/kubeadm-bootstrap
+import:
+- package: github.com/GeertJohan/go.rice
+  subpackages:
+  - embedded
+- package: github.com/Sirupsen/logrus
+  version: ^1.0.4
+- package: github.com/aws/aws-sdk-go
+  version: ^1.12.68
+  subpackages:
+  - aws/ec2metadata
+  - aws/session
+- package: github.com/bogdanovich/dns_resolver
+- package: github.com/google/go-jsonnet
+- package: github.com/spf13/cobra
+  version: ^0.0.1
+- package: github.com/spf13/viper
+  version: ^1.0.0

@@ -1,0 +1,35 @@
+project_name: kubeadm-bootstrap
+builds:
+- goos:
+  - linux
+  - darwin
+  goarch:
+  - amd64
+  main: .
+  ldflags: -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+  binary: kubeadm-bootstrap
+archive:
+  format: tar.gz
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm
+    }}v{{ .Arm }}{{ end }}'
+  files:
+  - licence*
+  - LICENCE*
+  - license*
+  - LICENSE*
+  - readme*
+  - README*
+  - changelog*
+  - CHANGELOG*
+fpm:
+  vendor: Apptio TechOps
+  homepage: "https://github.com/apptio/kubeadm-bootstrap"
+  maintainer: Lee Briggs <lbriggs@apptio.com>
+  description: "Create a kubeadm configuration file"
+  license: MIT
+  formats:
+    - rpm
+  bindir: /usr/local/bin
+snapshot:
+  name_template: SNAPSHOT-{{ .Commit }}
+dist: dist
