@@ -33,6 +33,7 @@
         "cloud-provider": cloudProvider,
         "advertise-address": ipAddress,
         "request-timeout": "300s",
+        "kubelet-certificate-authority": "/etc/kubernetes/pki/ca.crt",
         "admission-control": "Initializers,NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,ResourceQuota,AlwaysPullImages,DenyEscalatingExec,SecurityContextDeny,PodSecurityPolicy",
     },
 
