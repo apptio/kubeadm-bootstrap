@@ -29,6 +29,7 @@
         "audit-log-maxbackup": "10",
         "audit-log-maxsize": "100",
         "service-account-lookup": "true",
+        "repair-malformed-updates": "false",
         "cloud-provider": cloudProvider,
         "advertise-address": ipAddress,
     },
