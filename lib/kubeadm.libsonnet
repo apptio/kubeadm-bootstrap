@@ -29,12 +29,17 @@
         "audit-log-maxbackup": "10",
         "audit-log-maxsize": "100",
         "service-account-lookup": "true",
+        "repair-malformed-updates": "false",
         "cloud-provider": cloudProvider,
         "advertise-address": ipAddress,
+        "request-timeout": "300s",
+        "kubelet-certificate-authority": "/etc/kubernetes/pki/ca.crt",
+        "admission-control": "Initializers,NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,ResourceQuota,AlwaysPullImages,DenyEscalatingExec,SecurityContextDeny,PodSecurityPolicy",
     },
 
     local controllerManagerExtraArgs = {
         profiling: "false",
+        "terminated-pod-gc-threshold": "10",
         "cloud-provider": cloudProvider,
     },
 
