@@ -37,6 +37,7 @@
 
     local controllerManagerExtraArgs = {
         profiling: "false",
+        "terminated-pod-gc-threshold": "10",
         "cloud-provider": cloudProvider,
     },
 
