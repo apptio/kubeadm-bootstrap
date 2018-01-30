@@ -32,7 +32,7 @@
         "repair-malformed-updates": "false",
         "cloud-provider": cloudProvider,
         "advertise-address": ipAddress,
-        "request-timeout": "300",
+        "request-timeout": "300s",
     },
 
     local controllerManagerExtraArgs = {
