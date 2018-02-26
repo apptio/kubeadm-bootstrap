@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -200,6 +201,7 @@ using jsonnet templates for the config file`,
 		vm.ExtVar("ipaddress", ipAddress)
 		vm.ExtVar("addresslist", addresses)
 		vm.ExtVar("token", token)
+		vm.ExtVar("number_masters", strconv.Itoa(numberMasters))
 
 		// evaluate jsonnet snippet
 		out, err := vm.EvaluateSnippet("file", tmpl)
