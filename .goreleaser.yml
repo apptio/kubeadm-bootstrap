@@ -21,7 +21,7 @@ archive:
   - README*
   - changelog*
   - CHANGELOG*
-fpm:
+nfpm:
   vendor: Apptio TechOps
   homepage: "https://github.com/apptio/kubeadm-bootstrap"
   maintainer: Lee Briggs <lbriggs@apptio.com>
