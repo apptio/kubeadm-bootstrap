@@ -53,10 +53,12 @@
         profiling: "false",
         "terminated-pod-gc-threshold": "10",
         "cloud-provider": cloudProvider,
+        "address": "0.0.0.0",
     },
 
     local schedulerExtraArgs = {
         profiling: "false",
+        "address": "0.0.0.0",
     },
 
     local etcdCount = 3,
