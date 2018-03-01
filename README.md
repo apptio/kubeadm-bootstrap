@@ -1,5 +1,7 @@
 # kubeadm-bootstrap
 
+[![Build Status](https://travis-ci.org/apptio/kubeadm-bootstrap.svg?branch=master)](https://travis-ci.org/apptio/kubeadm-bootstrap)
+
 kubeadm-bootstrap is a simple tool to generate [kubeadm](https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/) configuration files.
 
 It uses [jsonnet](http://jsonnet.org/) to template the resulting JSON formatted kubeadm configuration file, meaning you can easily generate configurations for kubeadm, which can then be passed to a configuration management tool like [Puppet](https://puppet.com/) or [Chef](https://www.chef.io/chef/)
