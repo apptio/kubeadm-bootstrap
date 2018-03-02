@@ -36,8 +36,6 @@ import (
 
 	"io/ioutil"
 
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/session"
 	//"net"
 	"strings"
 
@@ -59,13 +57,18 @@ var addressList string
 var addresses string
 var numberMasters int
 var svcIP string
-var dcName string
 var token string
 var generatedToken string
 var dryrun bool
 
 // Version string
 var Version string
+
+const libLocation = "../lib"
+const kubeSonnet = "kubeadm.libsonnet"
+const awsCloud = "aws"
+const awslocalhostname = "local-hostname"
+const awsDN = ".compute.internal"
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -74,157 +77,8 @@ var RootCmd = &cobra.Command{
 	Long: `Generate a kubeadm config for a kubernetes cluster using CIS compatible configuration
 using jsonnet templates for the config file`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		// read static assets
-		templateBox, err := rice.FindBox("../lib")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		tmpl, err := templateBox.String("kubeadm.libsonnet")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// create a jsonnet vm
-		vm := jsonnet.MakeVM()
-
-		// check for default required vars
-		if datacenter == "" {
-			log.Info("Auto detecting dc name")
-			out, err := exec.Command("facter", "-p", "datacenter").Output()
-			if err != nil {
-				log.Fatal("Error detecting datacenter from facter: ", err)
-			}
-
-			dcName = string(out)
-			dcName = strings.TrimSuffix(dcName, "\n")
-
-			if dcName == "" {
-				log.Fatal("No datacenter provided")
-			}
-			log.Info("Datacenter name is: ", dcName)
-		} else {
-			dcName = datacenter
-		}
-
-		if clusterName == "" {
-			log.Fatal("Please specify a cluster name")
-		}
-
-		// determine if we're in AWS:
-
-		sess, err := session.NewSession()
-
-		if err != nil {
-			log.Fatal("Error creating AWS session", err)
-		}
-
-		// create an ec2metadata instance
-		svc := ec2metadata.New(sess)
-
-		// check for AWs
-		if svc.Available() == true {
-			log.Info("Running in AWS")
-			cloudProvider = "aws"
-
-			awsHostname, err := svc.GetMetadata("local-hostname") // set hostname if in AWS
-			splitHostname := strings.Split(awsHostname, ".")
-			region, err := svc.Region()
-
-			hostname = splitHostname[0] + "." + region + ".compute.internal"
-			if len(splitHostname) < 1 {
-				log.Warn("Cannot auto detect domainname")
-			} else {
-				detectedDomainName = splitHostname[1] + "." + splitHostname[2]
-			}
-
-			if err != nil {
-				log.Fatal("Error getting metadata", err)
-			}
-
-		} else {
-			log.Info("Not running in AWS")
-			cloudProvider = ""
-			hostname, err = os.Hostname()
-			if err != nil {
-				log.Fatal("Cannot detect hostname", err)
-			}
-			splitHostname := strings.Split(hostname, ".")
-			if len(splitHostname) < 3 {
-				log.Warn("Cannot auto detect domainname")
-			} else {
-				detectedDomainName = splitHostname[1] + "." + splitHostname[2]
-			}
-		}
-
-		if nodeName == "" {
-			if hostname == "" {
-				log.Fatal("Unable to detect hostname and no hostname provided")
-			}
-			log.Info("No hostname provided - auto detecting hostname")
-			nodeName = hostname
-		}
-
-		if domainName == "" {
-			if detectedDomainName == "" {
-				log.Fatal("Please specify a domain name for the cluster")
-			}
-			domainName = detectedDomainName
-		}
-
-		if addressList == "" {
-			addresses = n.GetMasterAddresses(dcName, clusterName, domainName, numberMasters, svcIP)
-			//log.Fatal("Please specify an list of IP addresses for the cluster")
-		} else {
-			addresses = addressList
-		}
-
-		ipAddress = n.GetOutboundIP()
-
-		if token == "" {
-
-			generatedToken, err = t.GenerateToken()
-
-			if err != nil {
-				log.Fatal("Error generating bootstrap token", err)
-			}
-			token = generatedToken
-		}
-
-		// populate jsonnet extvars
-		vm.ExtVar("datacenter", dcName)
-		vm.ExtVar("clustername", clusterName)
-		vm.ExtVar("domainname", domainName)
-		vm.ExtVar("nodename", nodeName)
-		vm.ExtVar("cloudprovider", cloudProvider)
-		vm.ExtVar("ipaddress", ipAddress)
-		vm.ExtVar("addresslist", addresses)
-		vm.ExtVar("token", token)
-		vm.ExtVar("number_masters", strconv.Itoa(numberMasters))
-
-		// evaluate jsonnet snippet
-		out, err := vm.EvaluateSnippet("file", tmpl)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if !dryrun {
-			// write the kubeadm file to disk
-			outFile := []byte(out)
-			err = ioutil.WriteFile(kubeadmFile, outFile, 0644)
-
-			if err != nil {
-				log.Fatal("Error writing kubeadm file", err)
-			}
-
-			log.Info("Wrote kubeadm file: ", kubeadmFile)
-		} else {
-			log.Info("Dry run specified, printing to stdout: ")
-			fmt.Println(out)
-		}
-
+		kb := NewKubeBootstrap(datacenter, clusterName)
+		kubeBootstrap(kb)
 	},
 }
 
@@ -236,6 +90,200 @@ func Execute(version string) {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
+}
+
+func kubeBootstrap(kb *KubeBootstrap) {
+
+	template, err := kb.getRiceTemplate(libLocation, kubeSonnet)
+
+	if kb.DCName == "" {
+		kb.DCName = kb.getDatacenterFromFacter()
+		if kb.DCName == "" {
+			// we still cant find the datacenter and none was passed in, BAIL
+			log.Fatalln("No datacenter information was provided, and we cannot detect the datacenter. Exiting.")
+			return
+		}
+	}
+
+	if kb.Cluster == "" {
+		log.Fatalln("No cluster information provided. Exiting.")
+		return
+	}
+
+	// TODO: first pass at the refactor
+	isAWS := kb.getAWSInformation("default")
+
+	// TODO: this is kind of ugly but this is a first pass,
+	// TODO: need to modularize before adding in the DI scaffolding
+	if !isAWS {
+		log.Info("Not running in AWS")
+		cloudProvider = ""
+		hostname, err = os.Hostname()
+		if err != nil {
+			log.Fatal("Cannot detect hostname", err)
+		}
+		splitHostname := strings.Split(hostname, ".")
+		if len(splitHostname) < 3 {
+			log.Warn("Cannot auto detect domainname")
+		} else {
+			detectedDomainName = splitHostname[1] + "." + splitHostname[2]
+		}
+		kb.DomainName = detectedDomainName
+	}
+
+	if nodeName == "" {
+		if hostname == "" {
+			log.Fatalln("Unable to detect hostname and no hostname provided")
+			return
+		}
+
+		// TODO: try autodetect hostname
+		log.Info("No hostname provided - auto detecting hostname")
+		nodeName = hostname
+	}
+
+	if addressList == "" {
+		addresses = n.GetMasterAddresses(kb.DCName, kb.Cluster, kb.DomainName, numberMasters, svcIP)
+	} else {
+		addresses = addressList
+	}
+
+	ipAddress = n.GetOutboundIP()
+
+	if token == "" {
+
+		generatedToken, err = t.GenerateToken()
+
+		if err != nil {
+			log.Fatal("Error generating bootstrap token", err)
+		}
+		token = generatedToken
+	}
+
+	// create a jsonnet vm
+	vm := jsonnet.MakeVM()
+	// populate jsonnet extvars
+	vm.ExtVar("datacenter", kb.DCName)
+	vm.ExtVar("clustername", kb.Cluster)
+	vm.ExtVar("domainname", kb.DomainName)
+	vm.ExtVar("nodename", nodeName)
+	vm.ExtVar("cloudprovider", cloudProvider)
+	vm.ExtVar("ipaddress", ipAddress)
+	vm.ExtVar("addresslist", addresses)
+	vm.ExtVar("token", token)
+	vm.ExtVar("number_masters", strconv.Itoa(numberMasters))
+
+	// evaluate jsonnet snippet
+	out, err := vm.EvaluateSnippet("file", template)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !dryrun {
+		// write the kubeadm file to disk
+		outFile := []byte(out)
+		err = ioutil.WriteFile(kubeadmFile, outFile, 0644)
+
+		if err != nil {
+			log.Fatal("Error writing kubeadm file", err)
+		}
+
+		log.Info("Wrote kubeadm file: ", kubeadmFile)
+	} else {
+		log.Info("Dry run specified, printing to stdout: ")
+		fmt.Println(out)
+	}
+}
+
+func (kb *KubeBootstrap) getRiceTemplate(fLocation string, fName string) (string, error) {
+	// read static assets
+	var template string
+	templateBox, err := rice.FindBox(fLocation)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error":    err,
+			"location": fLocation,
+		}).Errorln("Error finding ricebox location")
+		return template, err
+	}
+
+	template, err = templateBox.String(fName)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+			"file":  fName,
+		}).Errorln("Error finding rice box location")
+		return template, err
+	}
+
+	log.WithFields(log.Fields{
+		"template": template,
+	}).Debugln("Found rice box template")
+
+	return template, nil
+}
+
+func (kb *KubeBootstrap) getDatacenterFromFacter() string {
+	log.Infoln("Trying to autodetect datacenter name")
+	var dcName string
+
+	out, err := exec.Command("facter", "-p", "datacenter").Output()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Errorln("Error finding datacenter from facter")
+		return dcName
+	}
+
+	dcName = strings.TrimSpace(string(out))
+
+	if dcName == "" {
+		log.Errorln("Could not detect datacenter from facter")
+	} else {
+		log.WithFields(log.Fields{
+			"datacenter": dcName,
+		}).Infoln("Found datacenter from facter")
+	}
+
+	return dcName
+}
+
+func (kb *KubeBootstrap) getAWSInformation(profile string) bool {
+	// determine if we're in AWS:
+
+	sess, err := kb.CreateAWSSession(profile)
+
+	if err != nil {
+		log.Fatal("Error creating AWS session", err)
+	}
+
+	// create an ec2metadata instance
+	svc := kb.CreateEC2MetadataService(sess)
+	// check for AWs
+	if svc.Available() == true {
+		log.Info("Running in AWS")
+		kb.CloudProvider = awsCloud
+
+		awsHostname, err := svc.GetMetadata(awslocalhostname) // set hostname if in AWS
+		splitHostname := strings.Split(awsHostname, ".")
+		region, err := svc.Region()
+
+		hostname = splitHostname[0] + "." + region + awsDN
+		if len(splitHostname) < 1 {
+			log.Warn("Cannot auto detect domainname")
+		} else {
+			detectedDomainName = splitHostname[1] + "." + splitHostname[2]
+		}
+
+		if err != nil {
+			log.Fatal("Error getting metadata", err)
+		}
+
+		return true
+	}
+
+	return false
 }
 
 func init() {
