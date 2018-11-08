@@ -63,6 +63,7 @@ var dcName string
 var token string
 var generatedToken string
 var dryrun bool
+var quiet bool
 
 // Version string
 var Version string
@@ -74,6 +75,19 @@ var RootCmd = &cobra.Command{
 	Long: `Generate a kubeadm config for a kubernetes cluster using CIS compatible configuration
 using jsonnet templates for the config file`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		if quiet {
+			// set logging to /dev/null
+			file, err := os.OpenFile("/dev/null", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+			if err == nil {
+				log.SetOutput(file)
+			} else {
+				log.Fatal("Unable to open /dev/null.")
+			}
+		} else {
+			// set logging to stderr
+			log.SetOutput(os.Stderr)
+		}
 
 		// read static assets
 		templateBox, err := rice.FindBox("../lib")
@@ -256,6 +270,7 @@ func init() {
 	RootCmd.PersistentFlags().IntVarP(&numberMasters, "number", "m", 3, "number of masters in the cluster")
 	RootCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "kubernetes bootstrap token")
 	RootCmd.PersistentFlags().BoolVarP(&dryrun, "dry-run", "", false, "output the kubeadm config to stdout instead of a file")
+	RootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "", false, "suppress logging output")
 
 }
 
