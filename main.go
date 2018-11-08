@@ -20,7 +20,7 @@
 
 package main
 
-import "github.com/apptio/kubeadm-bootstrap/cmd"
+import "github.com/gregwalters/kubeadm-bootstrap/cmd"
 
 var version = "snapshot"
 
