@@ -270,7 +270,7 @@ func init() {
 	RootCmd.PersistentFlags().IntVarP(&numberMasters, "number", "m", 3, "number of masters in the cluster")
 	RootCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "kubernetes bootstrap token")
 	RootCmd.PersistentFlags().BoolVarP(&dryrun, "dry-run", "", false, "output the kubeadm config to stdout instead of a file")
-    RootCmd.PersistentFlags().BoolVarP(&quiet, "quiet" , "", false, "suppress logging output")
+	RootCmd.PersistentFlags().BoolVarP(&quiet, "quiet" , "", false, "suppress logging output")
 
 }
 
