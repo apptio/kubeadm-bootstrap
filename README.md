@@ -39,6 +39,7 @@ Flags:
   -f, --kubeadmfile string   path to kubeadm file to write (default "/etc/kubernetes/kubeadm.json")
   -n, --nodename string      nodename for bootstrap master
   -m, --number int           number of masters in the cluster (default 3)
+      --quiet                suppress logging output
   -s, --svcip string         kubernetes service IP (default "10.96.0.1")
   -t, --token string         kubernetes bootstrap token
 
@@ -47,7 +48,16 @@ Use "kubeadm-bootstrap [command] --help" for more information about a command.
 
 ## Installation
 
-Coming Soon
+You can run this without building it by using the docker container we provide:
+
+docker run apptio/kubeadm-bootstrap \
+    -a 10.0.0.1,10.0.0.2,10.0.0.3 \
+    -c testCluster \
+    -d DC1 \
+    -D example.com \
+    -n boostrapNode \
+    --dry-run \
+    --quiet
 
 ## Assumptions
 
